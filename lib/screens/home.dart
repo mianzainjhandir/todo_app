@@ -13,6 +13,15 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   final todosList = ToDo.todoList();
+  List<ToDo> _foundTodos = [];
+  final TextEditingController _todoController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState(){
+    super.initState();
+    _foundTodos = List.from(todosList);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +43,7 @@ class _HomeState extends State<Home> {
                         margin: EdgeInsets.only(top: 50,bottom: 20),
                         child: Text("All ToDos",style: TextStyle(fontSize: 30,fontWeight: FontWeight.w500),),
                       ),
-                      for( ToDo todo in todosList)
+                      for( ToDo todo in _foundTodos)
                       TodoItems(todo: todo,
                       onToDoChanged:  handelTdoChange,
                         onDeleteItem: deleteTodoItem,
@@ -70,6 +79,8 @@ class _HomeState extends State<Home> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: TextField(
+                    controller: _todoController,
+                    onSubmitted: (_) => _addTodoItem(),
                     decoration: InputDecoration(
                       hintText: "Add new todo item",
                       border: InputBorder.none,
@@ -86,25 +97,25 @@ class _HomeState extends State<Home> {
                     height: 60,
                     width: 60,
                     child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: tdBlue, // button color
-                        foregroundColor: Colors.white, // text color
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        elevation: 8,
-                      ),
-                      child: Text(
-                        "+",
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
+                      onPressed: _addTodoItem,
+                       style: ElevatedButton.styleFrom(
+                         backgroundColor: tdBlue, // button color
+                         foregroundColor: Colors.white, // text color
+                         shape: RoundedRectangleBorder(
+                           borderRadius: BorderRadius.circular(15),
+                         ),
+                         elevation: 8,
+                       ),
+                       child: Text(
+                         "+",
+                         style: TextStyle(
+                           fontSize: 32,
+                           fontWeight: FontWeight.bold,
+                         ),
+                       ),
+                     ),
+                   ),
+                 )
 
               ],
             ),
@@ -118,13 +129,38 @@ class _HomeState extends State<Home> {
   void handelTdoChange(ToDo todo){
     setState(() {
       todo.isDone = !todo.isDone;
+      _runFilter(_searchController.text);
     });
   }
 
   void deleteTodoItem(String id){
     setState(() {
       todosList.removeWhere((item) => item.id == id);
+      _runFilter(_searchController.text);
     });
+  }
+
+  void _addTodoItem(){
+    String text = _todoController.text.trim();
+    if(text.isEmpty) return; // don't add empty todos
+
+    setState(() {
+      final newTodo = ToDo(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        todoText: text,
+      );
+      todosList.insert(0, newTodo);
+      _todoController.clear();
+      FocusScope.of(context).unfocus();
+      _runFilter(_searchController.text);
+    });
+  }
+
+  @override
+  void dispose(){
+    _todoController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Widget searchBox(){
@@ -136,8 +172,9 @@ class _HomeState extends State<Home> {
 
       ),
       child: TextField(
+        controller: _searchController,
+        onChanged: (value) => _runFilter(value),
         decoration: InputDecoration(
-
             prefixIcon: Icon(Icons.search,color: tdBlack,size: 20,),
             prefixIconConstraints: BoxConstraints(
               maxHeight: 20,
@@ -149,6 +186,21 @@ class _HomeState extends State<Home> {
         ),
       ),
     );
+  }
+
+  void _runFilter(String enteredKeyword) {
+    List<ToDo> results = [];
+    if (enteredKeyword.isEmpty) {
+      results = List.from(todosList);
+    } else {
+      results = todosList
+          .where((todo) => todo.todoText!.toLowerCase().contains(enteredKeyword.toLowerCase()))
+          .toList();
+    }
+
+    setState(() {
+      _foundTodos = results;
+    });
   }
 
   AppBar _buildAppBar() {
